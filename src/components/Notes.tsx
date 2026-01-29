@@ -96,6 +96,7 @@ const Notes: React.FC = () => {
       // }
       console.log("index isssss",rootIndex)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootNote]);
 
   const calculateScale = (root: string, intervals: number[]) => {
@@ -116,22 +117,26 @@ const Notes: React.FC = () => {
   const majorScale = useMemo(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.major),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rootNote,accidentalType],
   );
   const minorScale = useMemo(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.minor),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rootNote,accidentalType],
   );
 
     const penatonicMajorScale = useMemo(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.majorp),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rootNote,accidentalType],
   );
   const penatonicMinorScale = useMemo(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.minorp),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rootNote,accidentalType],
   );
   const relativeMinorRoot = majorScale[5];
@@ -139,6 +144,7 @@ const Notes: React.FC = () => {
     // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(relativeMinorRoot , SCALES.minor),
     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [relativeMinorRoot,accidentalType],
   );
 
