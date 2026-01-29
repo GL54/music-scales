@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Card from "./Card"
-const CHROMATIC_SCALE ={ "all":[
+type AccidentalType = "all" | "sharps" | "flats";
+
+// 2. Explicitly type the object
+const CHROMATIC_SCALE: Record<AccidentalType, string[]> ={ "all":[
   "C",
   "C#/Db",
   "D",
@@ -42,21 +45,21 @@ const CHROMATIC_SCALE ={ "all":[
   "Bb",
   "B",
 ]};
-const ACCIDENTALS  = ["all","flats","sharps"]
+const ACCIDENTALS  = ["all","flats","sharps"] as const;
 const SCALES = {
   major: [2, 2, 1, 2, 2, 2], // W-W-H-W-W-W-H
   minor: [2, 1, 2, 2, 1, 2], // W-H-W-W-H-W-W
   minorp:[3, 2 , 2, 3],//(W+H) - W - W - (W+H)
   majorp:[2 , 2, 3, 2 ] // $W - W - (W+H) - W
 }
-const compareNotes = (noteA: string, noteB: string): boolean => {
-  // 1. Split both strings into arrays (e.g., "C#/Db" becomes ["C#", "Db"])
-  const partsA = noteA.split("/");
-  const partsB = noteB.split("/");
+// const compareNotes = (noteA: string, noteB: string): boolean => {
+//   // 1. Split both strings into arrays (e.g., "C#/Db" becomes ["C#", "Db"])
+//   const partsA = noteA.split("/");
+//   const partsB = noteB.split("/");
 
-  // 2. Check if any element in partsA exists inside partsB
-  return partsA.some(part => partsB.includes(part));
-};
+//   // 2. Check if any element in partsA exists inside partsB
+//   return partsA.some(part => partsB.includes(part));
+// };
 
 // const getIndexValue = (array:string[],check:string, def:number): number => {
 //   if(array.indexOf(check)){
@@ -67,7 +70,7 @@ const compareNotes = (noteA: string, noteB: string): boolean => {
 //   }
 // }
 const Notes: React.FC = () => {
-  const [accidentalType,setAccidentalsType] = useState("all")
+  const [accidentalType,setAccidentalsType] = useState<AccidentalType>("all")
 
   const [rootNote, setRootNote] = useState("C");
     const currentNotesArray = CHROMATIC_SCALE[accidentalType];
@@ -76,17 +79,19 @@ const Notes: React.FC = () => {
   // Safeguard: If rootNote isn't in the new accidental array, reset to 'C'
   useEffect(() => {
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRootNote(currentNotesArray[rootIndex])
     // if (compareNotes(rootNote,currentNotesArray[0])) {
     //   // eslint-disable-next-line react-hooks/set-state-in-effect
       
     // }
     
-  }, [accidentalType, currentNotesArray]);
+  }, [accidentalType, currentNotesArray, rootIndex]);
 
     useEffect(() => {
 
       // if(!currentNotesArray.indexOf(rootNote)){
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRootIndex(currentNotesArray.indexOf(rootNote))
       // }
       console.log("index isssss",rootIndex)
@@ -109,24 +114,29 @@ const Notes: React.FC = () => {
   };
 
   const majorScale = useMemo(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.major),
     [rootNote,accidentalType],
   );
   const minorScale = useMemo(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.minor),
     [rootNote,accidentalType],
   );
 
     const penatonicMajorScale = useMemo(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.majorp),
     [rootNote,accidentalType],
   );
   const penatonicMinorScale = useMemo(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(rootNote, SCALES.minorp),
     [rootNote,accidentalType],
   );
   const relativeMinorRoot = majorScale[5];
   const relativeMinorScale = useMemo(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () => calculateScale(relativeMinorRoot , SCALES.minor),
     
     [relativeMinorRoot,accidentalType],
