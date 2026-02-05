@@ -206,7 +206,7 @@ const data = [
 ]
 
   return (
-    <div className="p-6 max-w-3xl mx-auto bg-dark rounded-xl shadow-md space-y-4 w-full">
+    <div className="p-3 max-w-3xl mx-auto bg-dark rounded-xl shadow-md space-y-4 w-full">
       <h2 className="text-4xl font-bold text-white-800 pb-5">
         Music Scales
       </h2>
