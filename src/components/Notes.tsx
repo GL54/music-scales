@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Card from "./Card"
-type AccidentalType = "all" | "sharps" | "flats";
+type AccidentalType = "All" | "sharps" | "flats";
 
 // 2. Explicitly type the object
-const CHROMATIC_SCALE: Record<AccidentalType, string[]> ={ "all":[
+const CHROMATIC_SCALE: Record<AccidentalType, string[]> ={ "All":[
   "C",
   "C#/Db",
   "D",
@@ -45,7 +45,7 @@ const CHROMATIC_SCALE: Record<AccidentalType, string[]> ={ "all":[
   "Bb",
   "B",
 ]};
-const ACCIDENTALS  = ["all","flats","sharps"] as const;
+const ACCIDENTALS  = ["All","flats","sharps"] as const;
 const SCALES = {
   major: [2, 2, 1, 2, 2, 2], // W-W-H-W-W-W-H
   minor: [2, 1, 2, 2, 1, 2], // W-H-W-W-H-W-W
@@ -70,7 +70,7 @@ const SCALES = {
 //   }
 // }
 const Notes: React.FC = () => {
-  const [accidentalType,setAccidentalsType] = useState<AccidentalType>("all")
+  const [accidentalType,setAccidentalsType] = useState<AccidentalType>("All")
 
   const [rootNote, setRootNote] = useState("C");
     const currentNotesArray = CHROMATIC_SCALE[accidentalType];
@@ -95,16 +95,18 @@ const Notes: React.FC = () => {
         setRootIndex(currentNotesArray.indexOf(rootNote))
       // }
       console.log("index isssss",rootIndex)
+      console.log("windows height ",window.innerHeight)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootNote]);
 
   const calculateScale = (root: string, intervals: number[]) => {
+    console.log("root issss" , root)
     let currentIndex = currentNotesArray.indexOf(root);
     // let currentIndex = getIndexValue(currentNotesArray,root,rootIndex)
     // setRootIndex(currentIndex)
     // setRootNote(currentNotesArray[rootIndex]);
-    const scale = [rootNote];
+    const scale = [root];
 
     intervals.forEach((step) => {
       currentIndex = (currentIndex + step) % currentNotesArray.length;
@@ -173,7 +175,7 @@ const data = [
     relativeRoot:relativeMinorRoot ,
     scale: "Major Scale",
     relativeScale: relativeMinorScale,
-    rootNote : rootNote,
+    message : `Shares the same notes as ${rootNote} Major`,
     textColor: "text-white" ,
     bgColor: "bg-gray-900"
     ,pHeading:"text-[#7cdffc]",
@@ -185,6 +187,8 @@ const data = [
     relativeRoot:rootNote ,
     scale: "Minor Penatonic Scale",
     relativeScale: penatonicMinorScale,
+    rootNote : penatonicMinorScale[1],
+    message:`Shares the same notes as ${penatonicMinorScale[1]} Major pentatonic`
     // rootNote : ""
     // textColor: "string" ,
     // bgColor: "string"
@@ -194,6 +198,7 @@ const data = [
     relativeRoot:rootNote ,
     scale: "Major Penatonic Scale",
     relativeScale: penatonicMajorScale,
+    message:`Shares the same notes as ${penatonicMajorScale.at(-1)} Minor pentatonic`
     // rootNote : ""
     // textColor: "string" ,
     // bgColor: "string"
@@ -206,7 +211,7 @@ const data = [
         Music Scales
       </h2>
 
-<div className="flex flex-wrap md:flex-no-wrap gap-2 pb-2 justify-center pb-5">
+<div className="flex flex-wrap md:flex-no-wrap gap-2  m-2 justify-center pb-5">
           {ACCIDENTALS.map((key) => {
             const isSelected = accidentalType === key;
             return (
@@ -215,9 +220,9 @@ const data = [
                 key={key}
                 onClick={() => setAccidentalsType(key)}
                 className={`
-            w-12 h-12 flex items-center justify-center rounded-lg border-2 duration-200  border-transparent font-bold transition-all  text-[#01131c] hover:bg-[#1E1137] hover:text-[#fa1ea2] hover:shadow-[2px_2px_0px_0px_rgba(250,30,162)]
+             w-14 h-14 flex items-center justify-center rounded-lg border-2 duration-200  border-transparent font-bold transition-all  text-[#01131c] hover:bg-[#1E1137] hover:text-[#fa1ea2] hover:shadow-[2px_2px_0px_0px_rgba(250,30,162)]
             ${
-              isSelected ?"color-[#1E1137] text-[#fa1ea2] shadow-[2px_2px_0px_0px_rgba(250,30,162)] animate-pulse":"bg-[#7cdffc]"
+              isSelected ?"color-[#1E1137] text-[#fa1ea2] p-5 shadow-[2px_2px_0px_0px_rgba(250,30,162)] animate-pulse":"p-5 bg-[#7cdffc]"
                 // ? "bg-indigo-600 text-white shadow-lg scale-110"
                 // : "bg-white border border-gray-300 text-gray-700 hover:border-indigo-500 hover:bg-indigo-50"
             }

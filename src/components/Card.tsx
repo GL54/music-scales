@@ -5,7 +5,7 @@ type CardProps = {
     relativeRoot: string,
     scale: string,
     relativeScale: string[],
-    rootNote?: string,
+    message?: string,
     textColor?: string,
     bgColor?: string,
     pHeading?: string,
@@ -17,18 +17,18 @@ const Card = ({
     relativeRoot,
     scale,
     relativeScale,
-    rootNote,
+    message,
     textColor = "text-white",
     bgColor = "bg-[#08191f]",
-    pHeading = "text-[#91039b]"
-    ,pBg = "bg-[#91039b]"
+    pHeading = "text-[#D31C8C]"
+    ,pBg = "bg-[#D31C8C]"
 }: CardProps) => {
 
     // We use the joined scale as a key so the animation triggers on every note change
     const scaleKey = relativeScale.join("");
-
+// console.log(`root ${relativeRoot} and scale isss ${relativeScale}`)
     return (
-        <div className={`p-5 ${textColor} ${bgColor} duration-200 transition-all rounded-xl shadow-lg overflow-hidden`}>
+        <div className={`p-5 ${textColor} ${bgColor} duration-200 transition-all  rounded-xl shadow-lg overflow-hidden`}>
              <AnimatePresence mode="wait">
                 <motion.div
                     key={scaleKey}
@@ -48,9 +48,9 @@ const Card = ({
                         {relativeScale.join(" ")}
                     </p>
 
-                    {rootNote ? (
+                    {message ? (
                         <p className="text-xs mt-2 text-indigo-300 italic">
-                            Shares the same notes as {rootNote} Major
+                            {message}
                         </p>
                     ) : null}
                 </motion.div>
