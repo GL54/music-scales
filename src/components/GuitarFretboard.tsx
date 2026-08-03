@@ -1,18 +1,25 @@
-import { getGuitarFretboard, isSameNote } from '../utils/musicTheory';
+import { getGuitarFretboard, isSameNote, type FretNote } from '../utils/musicTheory';
 import { motion } from 'framer-motion';
+import { playNote } from '../utils/audio';
 
 type GuitarFretboardProps = {
   scaleNotes: string[];
   rootNote: string;
+  activeNotes?: string[];
+  isSustain?: boolean;
 };
 
-const GuitarFretboard = ({ scaleNotes, rootNote }: GuitarFretboardProps) => {
+const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = false }: GuitarFretboardProps) => {
   const numFrets = 12;
   // Get fretboard and reverse it so high E is at the top (index 0) and low E is at the bottom
   const fretboard = [...getGuitarFretboard(numFrets)].reverse();
 
   // Fret markers traditionally on frets 3, 5, 7, 9, 12
   const markers = [3, 5, 7, 9, 12];
+
+  const handleNoteClick = (fretNote: FretNote) => {
+    playNote(fretNote.fullNote, 'guitar', isSustain);
+  };
 
   return (
     <div className="mt-8 w-full max-w-full">
@@ -43,28 +50,34 @@ const GuitarFretboard = ({ scaleNotes, rootNote }: GuitarFretboardProps) => {
               <div key={stringIdx} className="flex items-center group relative min-h-[20px] sm:min-h-[28px]">
                 {/* The string line visual */}
                 <div
-                  className="absolute left-4 sm:left-8 right-0 bg-gradient-to-r from-gray-600 via-gray-400 to-gray-600 rounded-full z-0 shadow-sm"
+                  className="absolute left-4 sm:left-8 right-0 bg-gradient-to-r from-gray-600 via-gray-400 to-gray-600 rounded-full z-0 shadow-sm pointer-events-none"
                   style={{ height: `${1 + stringIdx * 0.3}px` }}
                 />
 
-                {stringNotes.map((note, fretIdx) => {
+                {stringNotes.map((fretNote, fretIdx) => {
+                  const { note } = fretNote;
                   const isRoot = isSameNote(note, rootNote);
                   const isInScale = !isRoot && scaleNotes.some(sn => isSameNote(sn, note));
                   const isHighlighted = isRoot || isInScale;
+                  const isActive = activeNotes.some(an => isSameNote(an, note));
 
                   return (
                     <div
                       key={fretIdx}
-                      className={`flex-1 flex justify-center z-10 h-full items-center ${fretIdx === 0 ? 'w-6 sm:w-8 flex-none border-r-2 sm:border-r-4 border-gray-400 pr-1 sm:pr-2' : 'border-r border-white/10'}`}
+                      onClick={() => handleNoteClick(fretNote)}
+                      className={`cursor-pointer flex-1 flex justify-center z-10 h-full items-center ${fretIdx === 0 ? 'w-6 sm:w-8 flex-none border-r-2 sm:border-r-4 border-gray-400 pr-1 sm:pr-2' : 'border-r border-white/10'} hover:bg-white/5 transition-colors rounded`}
                     >
-                      {isHighlighted ? (
+                      {isHighlighted || isActive ? (
                         <motion.div
+                          whileTap={{ scale: 0.9 }}
                           initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
+                          animate={{ scale: isActive ? 1.2 : 1 }}
                           transition={{ type: "spring", stiffness: 300, damping: 20 }}
                           className={`
-                          w-4 h-4 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-[8px] sm:text-xs font-bold shadow-lg
-                          ${isRoot ? 'bg-[#fa1ea2] text-white ring-2 sm:ring-4 ring-[#fa1ea2]/30' : 'bg-[#7cdffc] text-[#01131c]'}
+                          w-4 h-4 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-[8px] sm:text-xs font-bold shadow-lg transition-colors
+                          ${isActive ? 'bg-yellow-400 text-black ring-4 ring-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.8)] z-20' 
+                            : isRoot ? 'bg-[#fa1ea2] text-white ring-2 sm:ring-4 ring-[#fa1ea2]/30' 
+                            : 'bg-[#7cdffc] text-[#01131c]'}
                         `}
                         >
                           {note}

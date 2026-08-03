@@ -118,19 +118,46 @@ export function getScaleChords(scaleNotes: string[], scaleType: ScaleType): Chor
   });
 }
 
+export type FretNote = {
+  note: string;
+  octave: number;
+  fullNote: string;
+};
+
 // Generates a standard tuned guitar fretboard (E2, A2, D3, G3, B3, E4)
 // We return an array of strings (from low E to high E). 
 // Each string is an array of notes from open (fret 0) to maxFrets.
-export function getGuitarFretboard(maxFrets: number = 12): string[][] {
-  const tuning = ['E', 'A', 'D', 'G', 'B', 'E']; // 6th to 1st string
+export function getGuitarFretboard(maxFrets: number = 12): FretNote[][] {
+  const tuning = [
+    { note: 'E', octave: 2 },
+    { note: 'A', octave: 2 },
+    { note: 'D', octave: 3 },
+    { note: 'G', octave: 3 },
+    { note: 'B', octave: 3 },
+    { note: 'E', octave: 4 }
+  ]; // 6th to 1st string
+  
   const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   
-  return tuning.map(openNote => {
-    const stringNotes = [];
-    let startIndex = chromatic.indexOf(openNote);
+  return tuning.map(openString => {
+    const stringNotes: FretNote[] = [];
+    let currentOctave = openString.octave;
+    let startIndex = chromatic.indexOf(openString.note);
     
     for (let fret = 0; fret <= maxFrets; fret++) {
-      stringNotes.push(chromatic[(startIndex + fret) % 12]);
+      const noteIndex = (startIndex + fret) % 12;
+      const note = chromatic[noteIndex];
+      
+      // If we crossed from B to C, increment the octave
+      if (fret > 0 && note === 'C') {
+        currentOctave++;
+      }
+      
+      stringNotes.push({
+        note,
+        octave: currentOctave,
+        fullNote: `${note}${currentOctave}`
+      });
     }
     
     return stringNotes;

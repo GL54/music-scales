@@ -1,41 +1,35 @@
 import { isSameNote } from '../utils/musicTheory';
-
+import { playNote } from '../utils/audio';
 
 type PianoKeyboardProps = {
   scaleNotes: string[];
   rootNote: string;
+  activeNotes?: string[];
+  isSustain?: boolean;
 };
 
 // Define 2 octaves of keys.
-// 'offset' will help position black keys relative to white keys if we use absolute positioning,
-// but an easier way with Flexbox is to make white keys flex-1, 
-// and absolute position black keys on the borders between white keys.
 const PIANO_KEYS = [
-  { note: 'C', type: 'white' }, { note: 'C#', type: 'black' },
-  { note: 'D', type: 'white' }, { note: 'D#', type: 'black' },
-  { note: 'E', type: 'white' },
-  { note: 'F', type: 'white' }, { note: 'F#', type: 'black' },
-  { note: 'G', type: 'white' }, { note: 'G#', type: 'black' },
-  { note: 'A', type: 'white' }, { note: 'A#', type: 'black' },
-  { note: 'B', type: 'white' },
+  { note: 'C', type: 'white', octave: 3 }, { note: 'C#', type: 'black', octave: 3 },
+  { note: 'D', type: 'white', octave: 3 }, { note: 'D#', type: 'black', octave: 3 },
+  { note: 'E', type: 'white', octave: 3 },
+  { note: 'F', type: 'white', octave: 3 }, { note: 'F#', type: 'black', octave: 3 },
+  { note: 'G', type: 'white', octave: 3 }, { note: 'G#', type: 'black', octave: 3 },
+  { note: 'A', type: 'white', octave: 3 }, { note: 'A#', type: 'black', octave: 3 },
+  { note: 'B', type: 'white', octave: 3 },
   // Second octave
-  { note: 'C', type: 'white' }, { note: 'C#', type: 'black' },
-  { note: 'D', type: 'white' }, { note: 'D#', type: 'black' },
-  { note: 'E', type: 'white' },
-  { note: 'F', type: 'white' }, { note: 'F#', type: 'black' },
-  { note: 'G', type: 'white' }, { note: 'G#', type: 'black' },
-  { note: 'A', type: 'white' }, { note: 'A#', type: 'black' },
-  { note: 'B', type: 'white' },
-];
+  { note: 'C', type: 'white', octave: 4 }, { note: 'C#', type: 'black', octave: 4 },
+  { note: 'D', type: 'white', octave: 4 }, { note: 'D#', type: 'black', octave: 4 },
+  { note: 'E', type: 'white', octave: 4 },
+  { note: 'F', type: 'white', octave: 4 }, { note: 'F#', type: 'black', octave: 4 },
+  { note: 'G', type: 'white', octave: 4 }, { note: 'G#', type: 'black', octave: 4 },
+  { note: 'A', type: 'white', octave: 4 }, { note: 'A#', type: 'black', octave: 4 },
+  { note: 'B', type: 'white', octave: 4 },
+].map(k => ({ ...k, fullNote: `${k.note}${k.octave}` }));
 
-const PianoKeyboard = ({ scaleNotes, rootNote }: PianoKeyboardProps) => {
+const PianoKeyboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = false }: PianoKeyboardProps) => {
   // Separate white keys for the layout base
   const whiteKeys = PIANO_KEYS.filter(k => k.type === 'white');
-  
-  // To position black keys, we calculate their left percentage based on the white keys.
-  // There are 14 white keys. Each white key takes (100 / 14)% of the width.
-  // A black key is placed exactly on the boundary between two white keys.
-  // So C# is between C (index 0) and D (index 1). Left position = (1 / 14) * 100%.
   
   let currentWhiteIndex = 0;
   const keysWithPositions = PIANO_KEYS.map((key) => {
@@ -64,16 +58,21 @@ const PianoKeyboard = ({ scaleNotes, rootNote }: PianoKeyboardProps) => {
             {whiteKeys.map((key, i) => {
               const isRoot = isSameNote(key.note, rootNote);
               const isInScale = !isRoot && scaleNotes.some(sn => isSameNote(sn, key.note));
+              const isActive = activeNotes.some(an => isSameNote(an, key.note));
               
               return (
                 <div 
                   key={`white-${i}`} 
+                  onClick={() => playNote(key.fullNote, 'piano', isSustain)}
                   className={`
-                    flex-1 h-full border border-[#1a1125] rounded-b-md sm:rounded-b-lg relative flex items-end justify-center pb-2 sm:pb-4 transition-colors
-                    ${isRoot ? 'bg-[#fa1ea2]' : isInScale ? 'bg-[#7cdffc]' : 'bg-gray-100'}
+                    cursor-pointer flex-1 h-full border border-[#1a1125] rounded-b-md sm:rounded-b-lg relative flex items-end justify-center pb-2 sm:pb-4 transition-all duration-300 active:translate-y-1 z-0
+                    ${isActive ? 'bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)] z-10 scale-y-105 origin-top' 
+                      : isRoot ? 'bg-[#fa1ea2]' 
+                      : isInScale ? 'bg-[#7cdffc]' 
+                      : 'bg-gray-100 hover:bg-gray-200'}
                   `}
                 >
-                  <span className={`text-[10px] sm:text-sm font-bold ${isRoot || isInScale ? 'text-gray-900' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] sm:text-sm font-bold pointer-events-none transition-colors ${isActive || isRoot || isInScale ? 'text-gray-900' : 'text-gray-400'}`}>
                     {key.note}
                   </span>
                 </div>
@@ -85,26 +84,27 @@ const PianoKeyboard = ({ scaleNotes, rootNote }: PianoKeyboardProps) => {
           {keysWithPositions.filter(k => k.type === 'black').map((key, i) => {
             const isRoot = isSameNote(key.note, rootNote);
             const isInScale = !isRoot && scaleNotes.some(sn => isSameNote(sn, key.note));
+            const isActive = activeNotes.some(an => isSameNote(an, key.note));
             
-            // Left position: pos is the number of white keys before it.
-            // Width of one white key is 100/14 %.
-            // We want it centered on the border, so left is (pos * 100/14)%.
-            // But we must translate it left by 50% of its own width.
             const leftPercent = (key.pos / 14) * 100;
 
             return (
               <div 
                 key={`black-${i}`}
+                onClick={() => playNote(key.fullNote, 'piano', isSustain)}
                 className={`
-                  absolute top-1 sm:top-2 h-[60%] w-[4%] sm:w-[3.5%] rounded-b-sm sm:rounded-b-md flex items-end justify-center pb-1 sm:pb-2 z-10 transition-colors shadow-lg
-                  ${isRoot ? 'bg-[#fa1ea2]' : isInScale ? 'bg-[#7cdffc]' : 'bg-gray-800'}
+                  cursor-pointer absolute top-1 sm:top-2 h-[60%] w-[4%] sm:w-[3.5%] rounded-b-sm sm:rounded-b-md flex items-end justify-center pb-1 sm:pb-2 transition-all duration-300 active:translate-y-1
+                  ${isActive ? 'bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)] z-20 scale-y-105 origin-top' 
+                    : isRoot ? 'bg-[#fa1ea2] z-10' 
+                    : isInScale ? 'bg-[#7cdffc] z-10' 
+                    : 'bg-gray-800 hover:bg-gray-700 z-10'}
                 `}
                 style={{ 
                   left: `calc(${leftPercent}% - 2%)`, // Adjusted for w-[4%] on mobile, close enough visually
                   border: '1px solid #1a1125' 
                 }}
               >
-                <span className={`text-[8px] sm:text-[10px] font-bold ${isRoot || isInScale ? 'text-gray-900' : 'text-gray-500'}`}>
+                <span className={`text-[8px] sm:text-[10px] font-bold pointer-events-none transition-colors ${isActive || isRoot || isInScale ? 'text-gray-900' : 'text-gray-500'}`}>
                   {key.note}
                 </span>
               </div>

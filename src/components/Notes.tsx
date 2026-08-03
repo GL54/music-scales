@@ -15,7 +15,9 @@ const SCALE_TYPES: { id: ScaleType; label: string }[] = [
 const Notes: React.FC = () => {
   const [rootNote, setRootNote] = useState<string>("C");
   const [scaleType, setScaleType] = useState<ScaleType>("major");
-  const [instrument, setInstrument] = useState<'guitar' | 'keyboard'>('guitar');
+  const [instrument, setInstrument] = useState<'guitar' | 'piano'>('guitar');
+  const [activeNotes, setActiveNotes] = useState<string[]>([]);
+  const [isSustain, setIsSustain] = useState<boolean>(false);
 
   const scaleNotes = getScaleNotes(rootNote, scaleType);
 
@@ -45,8 +47,8 @@ const Notes: React.FC = () => {
                   onClick={() => setRootNote(note)}
                   className={`
                     w-12 h-12 flex items-center justify-center rounded-xl font-bold transition-all duration-300
-                    ${isSelected 
-                      ? "bg-gradient-to-br from-[#fa1ea2] to-[#91039b] text-white shadow-[0_0_20px_rgba(250,30,162,0.4)] scale-110" 
+                    ${isSelected
+                      ? "bg-gradient-to-br from-[#fa1ea2] to-[#91039b] text-white shadow-[0_0_20px_rgba(250,30,162,0.4)] scale-110"
                       : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"}
                   `}
                 >
@@ -69,8 +71,8 @@ const Notes: React.FC = () => {
                   onClick={() => setScaleType(id)}
                   className={`
                     px-4 sm:px-6 py-2 sm:py-3 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base
-                    ${isSelected 
-                      ? "bg-gradient-to-r from-[#01131c] to-[#08191f] text-[#7cdffc] border border-[#7cdffc]/50 shadow-[0_0_15px_rgba(124,223,252,0.3)]" 
+                    ${isSelected
+                      ? "bg-gradient-to-r from-[#01131c] to-[#08191f] text-[#7cdffc] border border-[#7cdffc]/50 shadow-[0_0_15px_rgba(124,223,252,0.3)]"
                       : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-transparent"}
                   `}
                 >
@@ -86,47 +88,68 @@ const Notes: React.FC = () => {
         {/* Display Components */}
         <div className="space-y-10">
           {/* Main Scale Card */}
-          <Card 
-            heading={rootNote} 
-            relativeRoot="" 
-            scale={SCALE_TYPES.find(s => s.id === scaleType)?.label || ""} 
-            relativeScale={scaleNotes} 
+          <Card
+            heading={rootNote}
+            relativeRoot=""
+            scale={SCALE_TYPES.find(s => s.id === scaleType)?.label || ""}
+            relativeScale={scaleNotes}
             pBg="bg-gradient-to-r from-[#fa1ea2] to-[#7cdffc]"
             pHeading="text-white"
           />
 
-          <ChordsList scaleNotes={scaleNotes} scaleType={scaleType} />
-          
+          <ChordsList 
+            scaleNotes={scaleNotes} 
+            scaleType={scaleType} 
+            instrument={instrument} 
+            isSustain={isSustain}
+            onPlayChord={(notes) => {
+              setActiveNotes(notes);
+              setTimeout(() => setActiveNotes([]), isSustain ? 2000 : 1000);
+            }}
+          />
+
           <div className="pt-4">
-            <div className="flex justify-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-6">
               <div className="bg-white/5 p-1 rounded-full flex gap-1 border border-white/10">
                 <button
                   onClick={() => setInstrument('guitar')}
-                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
-                    instrument === 'guitar' 
-                      ? 'bg-gradient-to-r from-[#fa1ea2] to-[#91039b] text-white shadow-lg' 
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${instrument === 'guitar'
+                      ? 'bg-gradient-to-r from-[#fa1ea2] to-[#91039b] text-white shadow-lg'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   Guitar
                 </button>
                 <button
-                  onClick={() => setInstrument('keyboard')}
-                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
-                    instrument === 'keyboard' 
-                      ? 'bg-gradient-to-r from-[#01131c] to-[#08191f] text-[#7cdffc] border border-[#7cdffc]/30 shadow-lg' 
+                  onClick={() => setInstrument('piano')}
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${instrument === 'piano'
+                      ? 'bg-gradient-to-r from-[#01131c] to-[#08191f] text-[#7cdffc] border border-[#7cdffc]/30 shadow-lg'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   Keyboard
                 </button>
               </div>
+
+              {/* Sustain Toggle */}
+              <button
+                onClick={() => setIsSustain(!isSustain)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border ${
+                  isSustain 
+                    ? 'bg-yellow-400/20 text-yellow-400 border-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]' 
+                    : 'bg-white/5 text-gray-400 border-white/10 hover:text-white hover:bg-white/10'
+                }`}
+                title={isSustain ? "Sustain is ON" : "Sustain is OFF"}
+              >
+                <div className={`w-2 h-2 rounded-full transition-colors ${isSustain ? 'bg-yellow-400 animate-pulse' : 'bg-gray-500'}`}></div>
+                Sustain
+              </button>
             </div>
 
             {instrument === 'guitar' ? (
-              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} />
+              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} />
             ) : (
-              <PianoKeyboard scaleNotes={scaleNotes} rootNote={rootNote} />
+              <PianoKeyboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} />
             )}
           </div>
         </div>

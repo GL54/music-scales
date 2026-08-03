@@ -1,12 +1,16 @@
 import { getScaleChords, type ScaleType } from '../utils/musicTheory';
 import { motion } from 'framer-motion';
+import { playNote, type InstrumentType } from '../utils/audio';
 
 type ChordsListProps = {
   scaleNotes: string[];
   scaleType: ScaleType;
+  instrument: InstrumentType;
+  isSustain?: boolean;
+  onPlayChord?: (notes: string[]) => void;
 };
 
-const ChordsList = ({ scaleNotes, scaleType }: ChordsListProps) => {
+const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, onPlayChord }: ChordsListProps) => {
   const chords = getScaleChords(scaleNotes, scaleType);
 
   if (chords.length === 0) {
@@ -16,6 +20,15 @@ const ChordsList = ({ scaleNotes, scaleType }: ChordsListProps) => {
       </div>
     );
   }
+
+  const handleChordClick = (notes: string[]) => {
+    // Map raw notes to octave 4 for chord playback
+    const chordNotes = notes.map(note => `${note}4`);
+    playNote(chordNotes, instrument, isSustain);
+    if (onPlayChord) {
+      onPlayChord(notes);
+    }
+  };
 
   return (
     <div className="mt-6">
@@ -27,10 +40,12 @@ const ChordsList = ({ scaleNotes, scaleType }: ChordsListProps) => {
         {chords.map((chord, idx) => (
           <motion.div
             key={chord.numeral}
+            onClick={() => handleChordClick(chord.notes)}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            whileTap={{ scale: 0.95 }}
             transition={{ duration: 0.3, delay: idx * 0.05 }}
-            className="group relative flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors backdrop-blur-md h-[90px] overflow-hidden"
+            className="group relative flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors backdrop-blur-md h-[90px] overflow-hidden cursor-pointer"
             tabIndex={0}
           >
             <span className="text-[#7cdffc] font-mono text-sm absolute top-2">{chord.numeral}</span>
