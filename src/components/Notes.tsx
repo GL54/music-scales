@@ -1,272 +1,136 @@
-import React, { useState, useMemo, useEffect } from "react";
-import Card from "./Card"
-type AccidentalType = "all" | "sharps" | "flats";
+import React, { useState } from "react";
+import { COMMON_ROOTS, getScaleNotes, type ScaleType } from "../utils/musicTheory";
+import Card from "./Card";
+import ChordsList from "./ChordsList";
+import GuitarFretboard from "./GuitarFretboard";
+import PianoKeyboard from "./PianoKeyboard";
 
-// 2. Explicitly type the object
-const CHROMATIC_SCALE: Record<AccidentalType, string[]> ={ "all":[
-  "C",
-  "C#/Db",
-  "D",
-  "D#/Eb",
-  "E",
-  "F",
-  "F#/Gb",
-  "G",
-  "G#/Ab",
-  "A",
-  "A#/Bb",
-  "B",
-],
-"sharps":[
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-],
-"flats":[
-  "C",
-  "Db",
-  "D",
-  "Eb",
-  "E",
-  "F",
-  "Gb",
-  "G",
-  "Ab",
-  "A",
-  "Bb",
-  "B",
-]};
-const ACCIDENTALS  = ["all","flats","sharps"] as const;
-const SCALES = {
-  major: [2, 2, 1, 2, 2, 2], // W-W-H-W-W-W-H
-  minor: [2, 1, 2, 2, 1, 2], // W-H-W-W-H-W-W
-  minorp:[3, 2 , 2, 3],//(W+H) - W - W - (W+H)
-  majorp:[2 , 2, 3, 2 ] // $W - W - (W+H) - W
-}
-// const compareNotes = (noteA: string, noteB: string): boolean => {
-//   // 1. Split both strings into arrays (e.g., "C#/Db" becomes ["C#", "Db"])
-//   const partsA = noteA.split("/");
-//   const partsB = noteB.split("/");
+const SCALE_TYPES: { id: ScaleType; label: string }[] = [
+  { id: 'major', label: 'Major' },
+  { id: 'minor', label: 'Minor' },
+  { id: 'majorPentatonic', label: 'Major Pentatonic' },
+  { id: 'minorPentatonic', label: 'Minor Pentatonic' },
+];
 
-//   // 2. Check if any element in partsA exists inside partsB
-//   return partsA.some(part => partsB.includes(part));
-// };
-
-// const getIndexValue = (array:string[],check:string, def:number): number => {
-//   if(array.indexOf(check)){
-//     return array.indexOf(check)
-//   }else{
-
-//     def 
-//   }
-// }
 const Notes: React.FC = () => {
-  const [accidentalType,setAccidentalsType] = useState<AccidentalType>("all")
+  const [rootNote, setRootNote] = useState<string>("C");
+  const [scaleType, setScaleType] = useState<ScaleType>("major");
+  const [instrument, setInstrument] = useState<'guitar' | 'keyboard'>('guitar');
 
-  const [rootNote, setRootNote] = useState("C");
-    const currentNotesArray = CHROMATIC_SCALE[accidentalType];
-  const [rootIndex ,setRootIndex] = useState(currentNotesArray.indexOf(rootNote))
-
-  // Safeguard: If rootNote isn't in the new accidental array, reset to 'C'
-  useEffect(() => {
-
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRootNote(currentNotesArray[rootIndex])
-    // if (compareNotes(rootNote,currentNotesArray[0])) {
-    //   // eslint-disable-next-line react-hooks/set-state-in-effect
-      
-    // }
-    
-  }, [accidentalType, currentNotesArray, rootIndex]);
-
-    useEffect(() => {
-
-      // if(!currentNotesArray.indexOf(rootNote)){
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setRootIndex(currentNotesArray.indexOf(rootNote))
-      // }
-      console.log("index isssss",rootIndex)
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rootNote]);
-
-  const calculateScale = (root: string, intervals: number[]) => {
-    let currentIndex = currentNotesArray.indexOf(root);
-    // let currentIndex = getIndexValue(currentNotesArray,root,rootIndex)
-    // setRootIndex(currentIndex)
-    // setRootNote(currentNotesArray[rootIndex]);
-    const scale = [rootNote];
-
-    intervals.forEach((step) => {
-      currentIndex = (currentIndex + step) % currentNotesArray.length;
-      scale.push(currentNotesArray[currentIndex]);
-    });
-
-    return scale;
-  };
-
-  const majorScale = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
-    () => calculateScale(rootNote, SCALES.major),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rootNote,accidentalType],
-  );
-  const minorScale = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
-    () => calculateScale(rootNote, SCALES.minor),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rootNote,accidentalType],
-  );
-
-    const penatonicMajorScale = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
-    () => calculateScale(rootNote, SCALES.majorp),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rootNote,accidentalType],
-  );
-  const penatonicMinorScale = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
-    () => calculateScale(rootNote, SCALES.minorp),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rootNote,accidentalType],
-  );
-  const relativeMinorRoot = majorScale[5];
-  const relativeMinorScale = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
-    () => calculateScale(relativeMinorRoot , SCALES.minor),
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [relativeMinorRoot,accidentalType],
-  );
-
-
-const data = [
-  {
-    heading: "",
-    relativeRoot:rootNote ,
-    scale: "Major Scale",
-    relativeScale: majorScale,
-    // rootNote : ""
-    // textColor: "string" ,
-    // bgColor: "string"
-  },
-  {
-    heading: "",
-    relativeRoot:rootNote ,
-    scale: "Minor Scale",
-    relativeScale: minorScale,
-    // rootNote : ""
-    // textColor: "string" ,
-    // bgColor: "string"
-  },
-  {
-    heading: "Relative Minor:",
-    relativeRoot:relativeMinorRoot ,
-    scale: "Major Scale",
-    relativeScale: relativeMinorScale,
-    rootNote : rootNote,
-    textColor: "text-white" ,
-    bgColor: "bg-gray-900"
-    ,pHeading:"text-[#7cdffc]",
-    pBg:"bg-[#7cdffc]"
-  }
-  ,
-    {
-    heading: "",
-    relativeRoot:rootNote ,
-    scale: "Minor Penatonic Scale",
-    relativeScale: penatonicMinorScale,
-    // rootNote : ""
-    // textColor: "string" ,
-    // bgColor: "string"
-  },
-  {
-    heading: "",
-    relativeRoot:rootNote ,
-    scale: "Major Penatonic Scale",
-    relativeScale: penatonicMajorScale,
-    // rootNote : ""
-    // textColor: "string" ,
-    // bgColor: "string"
-  },
-]
+  const scaleNotes = getScaleNotes(rootNote, scaleType);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto bg-dark rounded-xl shadow-md space-y-4 w-full">
-      <h2 className="text-4xl font-bold text-white-800 pb-5">
-        Music Scales
-      </h2>
+    <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto bg-[#040d12] rounded-3xl shadow-2xl space-y-8 w-full border border-white/5 relative overflow-hidden">
+      {/* Decorative background gradients */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-<div className="flex flex-wrap md:flex-no-wrap gap-2 pb-2 justify-center pb-5">
-          {ACCIDENTALS.map((key) => {
-            const isSelected = accidentalType === key;
-            return (
-
-              <button
-                key={key}
-                onClick={() => setAccidentalsType(key)}
-                className={`
-            w-12 h-12 flex items-center justify-center rounded-lg border-2 duration-200  border-transparent font-bold transition-all  text-[#01131c] hover:bg-[#1E1137] hover:text-[#fa1ea2] hover:shadow-[2px_2px_0px_0px_rgba(250,30,162)]
-            ${
-              isSelected ?"color-[#1E1137] text-[#fa1ea2] shadow-[2px_2px_0px_0px_rgba(250,30,162)] animate-pulse":"bg-[#7cdffc]"
-                // ? "bg-indigo-600 text-white shadow-lg scale-110"
-                // : "bg-white border border-gray-300 text-gray-700 hover:border-indigo-500 hover:bg-indigo-50"
-            }
-          `}
-              >
-                {key}
-              </button>
-    
-            );
-          })}
+      <div className="relative z-10">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#fa1ea2] to-[#7cdffc] pb-2 drop-shadow-sm">
+            Scale Explorer
+          </h2>
+          <p className="text-sm sm:text-base text-gray-400">Discover scales, chords, and fretboard positions.</p>
         </div>
-      <div className="space-y-2">
-        {/* <label className="block text-sm pb-3 font-medium text-gray-200">
-          Select Root Note: 
-         
-        </label> */}
 
-        <div className="flex flex-wrap md:flex-no-wrap gap-2 pb-2 justify-center pb-5">
-          {currentNotesArray.map((note:string ) => {
-            const isSelected = rootNote === note;
-            return (
+        {/* Root Note Selector */}
+        <div className="space-y-3 mb-8">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider text-center">Root Note</h3>
+          <div className="flex flex-wrap gap-3 justify-center">
+            {COMMON_ROOTS.map((note) => {
+              const isSelected = rootNote === note;
+              return (
+                <button
+                  key={note}
+                  onClick={() => setRootNote(note)}
+                  className={`
+                    w-12 h-12 flex items-center justify-center rounded-xl font-bold transition-all duration-300
+                    ${isSelected 
+                      ? "bg-gradient-to-br from-[#fa1ea2] to-[#91039b] text-white shadow-[0_0_20px_rgba(250,30,162,0.4)] scale-110" 
+                      : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10"}
+                  `}
+                >
+                  {note}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-              <button
-                key={note}
-                onClick={() => setRootNote(note)}
-                className={`
-            w-12 h-12 flex items-center justify-center rounded-lg border-2 duration-200  border-transparent font-bold transition-all  text-[#01131c] hover:bg-[#1E1137] hover:text-[#fa1ea2] hover:shadow-[2px_2px_0px_0px_rgba(250,30,162)]
-            ${
-              isSelected ?"color-[#1E1137] text-[#fa1ea2] shadow-[2px_2px_0px_0px_rgba(250,30,162)] animate-pulse":"bg-[#7cdffc]"
-                // ? "bg-indigo-600 text-white shadow-lg scale-110"
-                // : "bg-white border border-gray-300 text-gray-700 hover:border-indigo-500 hover:bg-indigo-50"
-            }
-          `}
-              >
-                {note}
-              </button>
-    
-            );
-          })}
+        {/* Scale Type Selector */}
+        <div className="space-y-3 mb-10">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider text-center">Scale Type</h3>
+          <div className="flex flex-wrap gap-3 justify-center">
+            {SCALE_TYPES.map(({ id, label }) => {
+              const isSelected = scaleType === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setScaleType(id)}
+                  className={`
+                    px-4 sm:px-6 py-2 sm:py-3 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base
+                    ${isSelected 
+                      ? "bg-gradient-to-r from-[#01131c] to-[#08191f] text-[#7cdffc] border border-[#7cdffc]/50 shadow-[0_0_15px_rgba(124,223,252,0.3)]" 
+                      : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-transparent"}
+                  `}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <hr className="border-white/10 mb-8" />
+
+        {/* Display Components */}
+        <div className="space-y-10">
+          {/* Main Scale Card */}
+          <Card 
+            heading={rootNote} 
+            relativeRoot="" 
+            scale={SCALE_TYPES.find(s => s.id === scaleType)?.label || ""} 
+            relativeScale={scaleNotes} 
+            pBg="bg-gradient-to-r from-[#fa1ea2] to-[#7cdffc]"
+            pHeading="text-white"
+          />
+
+          <ChordsList scaleNotes={scaleNotes} scaleType={scaleType} />
+          
+          <div className="pt-4">
+            <div className="flex justify-center mb-6">
+              <div className="bg-white/5 p-1 rounded-full flex gap-1 border border-white/10">
+                <button
+                  onClick={() => setInstrument('guitar')}
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                    instrument === 'guitar' 
+                      ? 'bg-gradient-to-r from-[#fa1ea2] to-[#91039b] text-white shadow-lg' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Guitar
+                </button>
+                <button
+                  onClick={() => setInstrument('keyboard')}
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                    instrument === 'keyboard' 
+                      ? 'bg-gradient-to-r from-[#01131c] to-[#08191f] text-[#7cdffc] border border-[#7cdffc]/30 shadow-lg' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Keyboard
+                </button>
+              </div>
+            </div>
+
+            {instrument === 'guitar' ? (
+              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} />
+            ) : (
+              <PianoKeyboard scaleNotes={scaleNotes} rootNote={rootNote} />
+            )}
+          </div>
         </div>
       </div>
-
-      <hr className="py-4 border-slate-200 duration-200 transition-colors" />
-          <div className="grid gap-4">{
-            data.map((scale)=> {
-              return <Card {...scale}/>
-            })
-          }</div>
-     
     </div>
   );
 };
