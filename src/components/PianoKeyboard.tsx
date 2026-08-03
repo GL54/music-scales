@@ -1,5 +1,5 @@
 import { isSameNote } from '../utils/musicTheory';
-import { motion } from 'framer-motion';
+
 
 type PianoKeyboardProps = {
   scaleNotes: string[];

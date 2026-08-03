@@ -50,7 +50,7 @@ export function getScaleNotes(rootNote: string, scaleType: ScaleType): string[] 
   const rootSemitone = getNoteSemitone(rootNote);
   const intervals = SCALE_INTERVALS[baseScaleType];
   
-  const baseScaleNotes = [];
+  const baseScaleNotes: string[] = [];
   
   for (let i = 0; i < 7; i++) {
     const targetSemitone = (rootSemitone + intervals[i]) % 12;
