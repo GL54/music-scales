@@ -1,18 +1,20 @@
-import React from "react";
-import { getScaleChords, getAscendingChordNotes, type ScaleType } from '../utils/musicTheory';
+import { getScaleChords, getAscendingChordNotes, getGuitarPositionFretRange, getGuitarChordVoicing, type ScaleType, type GuitarPosition, type VoicingType } from '../utils/musicTheory';
 import { motion } from 'framer-motion';
 import { playNote, playArpeggio, type InstrumentType } from '../utils/audio';
 
 type ChordsListProps = {
+  rootNote: string;
   scaleNotes: string[];
   scaleType: ScaleType;
   instrument: InstrumentType;
   isSustain?: boolean;
   isArpeggio?: boolean;
+  guitarPosition?: GuitarPosition;
+  voicingType?: VoicingType;
   onPlayChord?: (notes: string[]) => void;
 };
 
-const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, isArpeggio = false, onPlayChord }: ChordsListProps) => {
+const ChordsList = ({ rootNote, scaleNotes, scaleType, instrument, isSustain = false, isArpeggio = false, guitarPosition = 'all', voicingType = 'strum', onPlayChord }: ChordsListProps) => {
   const chords = getScaleChords(scaleNotes, scaleType);
 
   if (chords.length === 0) {
@@ -24,8 +26,14 @@ const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, isAr
   }
 
   const handleChordClick = (notes: string[]) => {
-    // Properly format the notes so they ascend in pitch (e.g. A4, C5, E5)
-    const chordNotes = getAscendingChordNotes(notes, 4);
+    let chordNotes: string[] = [];
+    
+    if (instrument === 'guitar') {
+      const fretRange = getGuitarPositionFretRange(rootNote, guitarPosition);
+      chordNotes = getGuitarChordVoicing(notes, fretRange, voicingType);
+    } else {
+      chordNotes = getAscendingChordNotes(notes, 4);
+    }
     
     if (isArpeggio) {
       playArpeggio(chordNotes, instrument, isSustain);
@@ -34,7 +42,7 @@ const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, isAr
     }
     
     if (onPlayChord) {
-      onPlayChord(notes);
+      onPlayChord(chordNotes);
     }
   };
 

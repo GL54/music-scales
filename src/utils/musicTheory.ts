@@ -192,3 +192,132 @@ export function getAscendingChordNotes(notes: string[], baseOctave: number = 4):
   
   return result;
 }
+
+export type GuitarPosition = 'all' | 'open' | 1 | 2 | 3 | 4 | 5;
+export type VoicingType = 'triad' | 'strum';
+
+export function getGuitarPositionFretRange(rootNote: string, position: GuitarPosition): [number, number] {
+  if (position === 'all') return [0, 24];
+  if (position === 'open') return [0, 4];
+  
+  const rootSemitone = getNoteSemitone(rootNote);
+  const eSemitone = getNoteSemitone('E');
+  const rootFret = (rootSemitone - eSemitone + 12) % 12;
+  
+  const offsets = [0, 3, 5, 7, 10]; 
+  let startFret = (rootFret + offsets[position as number - 1]) % 12;
+  
+  return [Math.max(0, startFret), startFret + 4];
+}
+
+export function getGuitarChordVoicing(chordNotes: string[], fretRange: [number, number], voicingType: VoicingType = 'strum'): string[] {
+  const fretboard = getGuitarFretboard(24);
+  const [minFret, maxFret] = fretRange;
+  
+  const stringAvailableNotes: { stringIdx: number, fretNote: FretNote, fret: number }[][] = [];
+  
+  for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+    const stringNotes = fretboard[stringIdx];
+    const available = [];
+    for (let fret = minFret; fret <= maxFret; fret++) {
+      if (fret < stringNotes.length) {
+        const fn = stringNotes[fret];
+        if (chordNotes.some(cn => isSameNote(cn, fn.note))) {
+          available.push({ stringIdx, fretNote: fn, fret });
+        }
+      }
+    }
+    stringAvailableNotes.push(available);
+  }
+  
+  const hasAllChordNotes = (combo: FretNote[]) => {
+    const used = new Set();
+    combo.forEach(fn => {
+      const idx = chordNotes.findIndex(cn => isSameNote(cn, fn.note));
+      if (idx !== -1) used.add(idx);
+    });
+    return used.size === chordNotes.length;
+  };
+
+  if (voicingType === 'triad') {
+    for (let startStr = 3; startStr >= 0; startStr--) {
+      const s1 = stringAvailableNotes[startStr];
+      const s2 = stringAvailableNotes[startStr + 1];
+      const s3 = stringAvailableNotes[startStr + 2];
+      
+      for (const n1 of s1) {
+        for (const n2 of s2) {
+          for (const n3 of s3) {
+            const combo = [n1.fretNote, n2.fretNote, n3.fretNote];
+            if (hasAllChordNotes(combo)) {
+              return combo.map(n => n.fullNote);
+            }
+          }
+        }
+      }
+    }
+    
+    // Fallback if no perfect triad exists on 3 adjacent strings (unlikely)
+    return [];
+  }
+  
+  // Strum Voicing
+  let rootStringIdx = -1;
+  let rootNoteSelection = null;
+  
+  for (let i = 0; i < 6; i++) {
+    const rootNotes = stringAvailableNotes[i].filter(n => isSameNote(n.fretNote.note, chordNotes[0]));
+    if (rootNotes.length > 0) {
+      rootStringIdx = i;
+      rootNoteSelection = rootNotes[0];
+      break;
+    }
+  }
+  
+  if (rootStringIdx === -1) {
+    const fallback = [];
+    for (let i = 0; i < 6; i++) {
+      if (stringAvailableNotes[i].length > 0) fallback.push(stringAvailableNotes[i][0].fretNote.fullNote);
+    }
+    return fallback.slice(-3);
+  }
+  
+  let bestCombo: FretNote[] | null = null;
+  
+  const searchStrum = (currentStr: number, currentCombo: FretNote[]) => {
+    if (currentStr > 5) {
+      if (hasAllChordNotes(currentCombo)) {
+        if (!bestCombo) bestCombo = [...currentCombo];
+      }
+      return;
+    }
+    
+    const available = stringAvailableNotes[currentStr];
+    if (available.length === 0) {
+      searchStrum(currentStr + 1, currentCombo);
+    } else {
+      for (const n of available) {
+        currentCombo.push(n.fretNote);
+        searchStrum(currentStr + 1, currentCombo);
+        currentCombo.pop();
+        if (bestCombo) return; 
+      }
+    }
+  };
+  
+  searchStrum(rootStringIdx + 1, [rootNoteSelection!.fretNote]);
+  
+  const finalCombo = bestCombo as FretNote[] | null;
+  if (finalCombo) {
+    return finalCombo.map((n: FretNote) => n.fullNote);
+  }
+  
+  const fallback = [rootNoteSelection!.fretNote.fullNote];
+  for (let i = rootStringIdx + 1; i < 6; i++) {
+    if (stringAvailableNotes[i].length > 0) {
+      fallback.push(stringAvailableNotes[i][0].fretNote.fullNote);
+    }
+  }
+  
+  return fallback;
+}

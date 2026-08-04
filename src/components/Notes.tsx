@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { COMMON_ROOTS, getScaleNotes, type ScaleType } from "../utils/musicTheory";
+import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { COMMON_ROOTS, getScaleNotes, type ScaleType, type GuitarPosition, type VoicingType } from "../utils/musicTheory";
 import Card from "./Card";
 import ChordsList from "./ChordsList";
 import GuitarFretboard from "./GuitarFretboard";
@@ -20,6 +21,9 @@ const Notes: React.FC = () => {
   const [activeNotes, setActiveNotes] = useState<string[]>([]);
   const [isSustain, setIsSustain] = useState<boolean>(false);
   const [isArpeggio, setIsArpeggio] = useState<boolean>(false);
+  const [guitarPosition, setGuitarPosition] = useState<GuitarPosition>('all');
+  const [voicingType, setVoicingType] = useState<VoicingType>('strum');
+  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Preload audio samples on mount
   useEffect(() => {
@@ -105,15 +109,35 @@ const Notes: React.FC = () => {
           />
 
           <ChordsList 
+            rootNote={rootNote}
             scaleNotes={scaleNotes} 
             scaleType={scaleType} 
             instrument={instrument} 
             isSustain={isSustain}
             isArpeggio={isArpeggio}
+            guitarPosition={guitarPosition}
+            voicingType={voicingType}
             onPlayChord={(notes) => {
-              setActiveNotes(notes);
-              const arpeggioDelay = isArpeggio ? notes.length * 200 : 0;
-              setTimeout(() => setActiveNotes([]), (isSustain ? 2000 : 1000) + arpeggioDelay);
+              timeoutRefs.current.forEach(clearTimeout);
+              timeoutRefs.current = [];
+
+              if (isArpeggio) {
+                notes.forEach((note, index) => {
+                  const t = setTimeout(() => {
+                    setActiveNotes([note]);
+                  }, index * 200);
+                  timeoutRefs.current.push(t);
+                });
+                
+                const clearT = setTimeout(() => {
+                  setActiveNotes([]);
+                }, notes.length * 200 + (isSustain ? 2000 : 500));
+                timeoutRefs.current.push(clearT);
+              } else {
+                setActiveNotes(notes);
+                const t = setTimeout(() => setActiveNotes([]), isSustain ? 2000 : 1000);
+                timeoutRefs.current.push(t);
+              }
             }}
           />
 
@@ -171,8 +195,72 @@ const Notes: React.FC = () => {
               </div>
             </div>
 
+            {instrument === 'guitar' && (
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-6 mb-6">
+                
+                {/* Position Selector */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Position</span>
+                  <div className="flex bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
+                    {['all', 'open', 1, 2, 3, 4, 5].map(pos => {
+                       const label = pos === 'all' ? 'All' : pos === 'open' ? 'Open' : `${pos}`;
+                       const isActive = guitarPosition === pos;
+                       return (
+                         <button
+                           key={pos}
+                           onClick={() => setGuitarPosition(pos as GuitarPosition)}
+                           className={`relative px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-colors duration-300 ${
+                             isActive ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                           }`}
+                         >
+                           {isActive && (
+                             <motion.div
+                               layoutId="position-active-bg"
+                               className="absolute inset-0 bg-gradient-to-r from-[#fa1ea2] to-[#91039b] rounded-full shadow-md z-0"
+                               transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                             />
+                           )}
+                           <span className="relative z-10">{label}</span>
+                         </button>
+                       )
+                    })}
+                  </div>
+                </div>
+
+                {/* Voicing Selector */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Voicing</span>
+                  <div className="flex bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
+                    {['strum', 'triad'].map(v => {
+                       const label = v === 'strum' ? 'Strum' : 'Triad';
+                       const isActive = voicingType === v;
+                       return (
+                         <button
+                           key={v}
+                           onClick={() => setVoicingType(v as VoicingType)}
+                           className={`relative px-4 sm:px-5 py-1.5 rounded-full text-xs font-bold transition-colors duration-300 ${
+                             isActive ? 'text-[#7cdffc]' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                           }`}
+                         >
+                           {isActive && (
+                             <motion.div
+                               layoutId="voicing-active-bg"
+                               className="absolute inset-0 bg-gradient-to-r from-[#01131c] to-[#08191f] border border-[#7cdffc]/30 rounded-full shadow-md z-0"
+                               transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                             />
+                           )}
+                           <span className="relative z-10">{label}</span>
+                         </button>
+                       )
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            )}
+
             {instrument === 'guitar' ? (
-              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} />
+              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} guitarPosition={guitarPosition} />
             ) : (
               <PianoKeyboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} />
             )}

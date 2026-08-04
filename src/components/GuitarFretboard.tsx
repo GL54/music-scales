@@ -1,4 +1,4 @@
-import { getGuitarFretboard, isSameNote, type FretNote } from '../utils/musicTheory';
+import { getGuitarFretboard, isSameNote, getGuitarPositionFretRange, type GuitarPosition, type FretNote } from '../utils/musicTheory';
 import { motion } from 'framer-motion';
 import { playNote } from '../utils/audio';
 
@@ -7,15 +7,15 @@ type GuitarFretboardProps = {
   rootNote: string;
   activeNotes?: string[];
   isSustain?: boolean;
+  guitarPosition?: GuitarPosition;
 };
 
-const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = false }: GuitarFretboardProps) => {
-  const numFrets = 12;
-  // Get fretboard and reverse it so high E is at the top (index 0) and low E is at the bottom
+const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = false, guitarPosition = 'all' }: GuitarFretboardProps) => {
+  const numFrets = 16;
   const fretboard = [...getGuitarFretboard(numFrets)].reverse();
-
-  // Fret markers traditionally on frets 3, 5, 7, 9, 12
-  const markers = [3, 5, 7, 9, 12];
+  const markers = [3, 5, 7, 9, 12, 15];
+  
+  const fretRange = guitarPosition === 'all' ? [0, numFrets] : getGuitarPositionFretRange(rootNote, guitarPosition);
 
   const handleNoteClick = (fretNote: FretNote) => {
     playNote(fretNote.fullNote, 'guitar', isSustain);
@@ -44,6 +44,51 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
             ))}
           </div>
 
+          {/* Dimming Masks Overlay */}
+          <div className="absolute inset-2 sm:inset-6 grid grid-cols-[1.5rem_repeat(16,1fr)] sm:grid-cols-[2rem_repeat(16,1fr)] pointer-events-none z-20 rounded-[10px] sm:rounded-[14px] overflow-hidden">
+            {/* Left Mask */}
+            <motion.div
+              layout
+              initial={false}
+              animate={{ opacity: guitarPosition === 'all' || fretRange[0] === 0 ? 0 : 1 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-[#1a1125]/70 backdrop-grayscale"
+              style={{
+                gridColumnStart: 1,
+                gridColumnEnd: Math.max(2, fretRange[0] + 1),
+                gridRow: 1
+              }}
+            />
+            
+            {/* Active Area Highlight Frame */}
+            <motion.div
+              layout
+              initial={false}
+              animate={{ opacity: guitarPosition === 'all' ? 0 : 1 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="border-[3px] border-white/20 rounded-lg shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]"
+              style={{
+                gridColumnStart: fretRange[0] + 1,
+                gridColumnEnd: fretRange[1] + 2,
+                gridRow: 1
+              }}
+            />
+
+            {/* Right Mask */}
+            <motion.div
+              layout
+              initial={false}
+              animate={{ opacity: guitarPosition === 'all' || fretRange[1] >= 16 ? 0 : 1 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-[#1a1125]/70 backdrop-grayscale"
+              style={{
+                gridColumnStart: Math.min(17, fretRange[1] + 2),
+                gridColumnEnd: 18,
+                gridRow: 1
+              }}
+            />
+          </div>
+
           {/* Strings */}
           <div className="flex flex-col gap-1 sm:gap-2 relative z-10">
             {fretboard.map((stringNotes, stringIdx) => (
@@ -59,7 +104,16 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
                   const isRoot = isSameNote(note, rootNote);
                   const isInScale = !isRoot && scaleNotes.some(sn => isSameNote(sn, note));
                   const isHighlighted = isRoot || isInScale;
-                  const isActive = activeNotes.some(an => isSameNote(an, note));
+                  
+                  const hasOctave = (an: string) => /\d$/.test(an);
+                  let isActive = activeNotes.some(an => {
+                    if (hasOctave(an)) return an === fretNote.fullNote;
+                    return isSameNote(an, note);
+                  });
+
+                  if (guitarPosition !== 'all' && (fretIdx < fretRange[0] || fretIdx > fretRange[1])) {
+                    isActive = false;
+                  }
 
                   return (
                     <div
