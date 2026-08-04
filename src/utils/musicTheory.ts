@@ -168,3 +168,27 @@ export function getGuitarFretboard(maxFrets: number = 12): FretNote[][] {
 export function isSameNote(note1: string, note2: string): boolean {
   return getNoteSemitone(note1) === getNoteSemitone(note2);
 }
+
+// Formats an array of raw notes into an ascending sequence with octaves.
+export function getAscendingChordNotes(notes: string[], baseOctave: number = 4): string[] {
+  if (notes.length === 0) return [];
+  
+  const result: string[] = [];
+  let currentOctave = baseOctave;
+  let previousSemitone = getNoteSemitone(notes[0]);
+  
+  result.push(`${notes[0]}${currentOctave}`);
+  
+  for (let i = 1; i < notes.length; i++) {
+    const semitone = getNoteSemitone(notes[i]);
+    // If the next note has a lower or equal semitone within the 12-tone scale,
+    // it means we wrapped around the octave.
+    if (semitone <= previousSemitone) {
+      currentOctave++;
+    }
+    result.push(`${notes[i]}${currentOctave}`);
+    previousSemitone = semitone;
+  }
+  
+  return result;
+}

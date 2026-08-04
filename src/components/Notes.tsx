@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { COMMON_ROOTS, getScaleNotes, type ScaleType } from "../utils/musicTheory";
 import Card from "./Card";
 import ChordsList from "./ChordsList";
 import GuitarFretboard from "./GuitarFretboard";
 import PianoKeyboard from "./PianoKeyboard";
+import { preloadAudio } from "../utils/audio";
 
 const SCALE_TYPES: { id: ScaleType; label: string }[] = [
   { id: 'major', label: 'Major' },
@@ -18,6 +19,12 @@ const Notes: React.FC = () => {
   const [instrument, setInstrument] = useState<'guitar' | 'piano'>('guitar');
   const [activeNotes, setActiveNotes] = useState<string[]>([]);
   const [isSustain, setIsSustain] = useState<boolean>(false);
+  const [isArpeggio, setIsArpeggio] = useState<boolean>(false);
+
+  // Preload audio samples on mount
+  useEffect(() => {
+    preloadAudio();
+  }, []);
 
   const scaleNotes = getScaleNotes(rootNote, scaleType);
 
@@ -102,9 +109,11 @@ const Notes: React.FC = () => {
             scaleType={scaleType} 
             instrument={instrument} 
             isSustain={isSustain}
+            isArpeggio={isArpeggio}
             onPlayChord={(notes) => {
               setActiveNotes(notes);
-              setTimeout(() => setActiveNotes([]), isSustain ? 2000 : 1000);
+              const arpeggioDelay = isArpeggio ? notes.length * 200 : 0;
+              setTimeout(() => setActiveNotes([]), (isSustain ? 2000 : 1000) + arpeggioDelay);
             }}
           />
 
@@ -131,19 +140,35 @@ const Notes: React.FC = () => {
                 </button>
               </div>
 
-              {/* Sustain Toggle */}
-              <button
-                onClick={() => setIsSustain(!isSustain)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border ${
-                  isSustain 
-                    ? 'bg-yellow-400/20 text-yellow-400 border-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]' 
-                    : 'bg-white/5 text-gray-400 border-white/10 hover:text-white hover:bg-white/10'
-                }`}
-                title={isSustain ? "Sustain is ON" : "Sustain is OFF"}
-              >
-                <div className={`w-2 h-2 rounded-full transition-colors ${isSustain ? 'bg-yellow-400 animate-pulse' : 'bg-gray-500'}`}></div>
-                Sustain
-              </button>
+              <div className="flex gap-2">
+                {/* Sustain Toggle */}
+                <button
+                  onClick={() => setIsSustain(!isSustain)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border ${
+                    isSustain 
+                      ? 'bg-yellow-400/20 text-yellow-400 border-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]' 
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:text-white hover:bg-white/10'
+                  }`}
+                  title={isSustain ? "Sustain is ON" : "Sustain is OFF"}
+                >
+                  <div className={`w-2 h-2 rounded-full transition-colors ${isSustain ? 'bg-yellow-400 animate-pulse' : 'bg-gray-500'}`}></div>
+                  Sustain
+                </button>
+
+                {/* Arpeggio Toggle */}
+                <button
+                  onClick={() => setIsArpeggio(!isArpeggio)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border ${
+                    isArpeggio 
+                      ? 'bg-[#7cdffc]/20 text-[#7cdffc] border-[#7cdffc]/50 shadow-[0_0_15px_rgba(124,223,252,0.2)]' 
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:text-white hover:bg-white/10'
+                  }`}
+                  title={isArpeggio ? "Arpeggio is ON" : "Arpeggio is OFF"}
+                >
+                  <div className={`w-2 h-2 rounded-full transition-colors ${isArpeggio ? 'bg-[#7cdffc] animate-pulse' : 'bg-gray-500'}`}></div>
+                  Arpeggio
+                </button>
+              </div>
             </div>
 
             {instrument === 'guitar' ? (

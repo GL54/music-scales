@@ -1,16 +1,18 @@
-import { getScaleChords, type ScaleType } from '../utils/musicTheory';
+import React from "react";
+import { getScaleChords, getAscendingChordNotes, type ScaleType } from '../utils/musicTheory';
 import { motion } from 'framer-motion';
-import { playNote, type InstrumentType } from '../utils/audio';
+import { playNote, playArpeggio, type InstrumentType } from '../utils/audio';
 
 type ChordsListProps = {
   scaleNotes: string[];
   scaleType: ScaleType;
   instrument: InstrumentType;
   isSustain?: boolean;
+  isArpeggio?: boolean;
   onPlayChord?: (notes: string[]) => void;
 };
 
-const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, onPlayChord }: ChordsListProps) => {
+const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, isArpeggio = false, onPlayChord }: ChordsListProps) => {
   const chords = getScaleChords(scaleNotes, scaleType);
 
   if (chords.length === 0) {
@@ -22,9 +24,15 @@ const ChordsList = ({ scaleNotes, scaleType, instrument, isSustain = false, onPl
   }
 
   const handleChordClick = (notes: string[]) => {
-    // Map raw notes to octave 4 for chord playback
-    const chordNotes = notes.map(note => `${note}4`);
-    playNote(chordNotes, instrument, isSustain);
+    // Properly format the notes so they ascend in pitch (e.g. A4, C5, E5)
+    const chordNotes = getAscendingChordNotes(notes, 4);
+    
+    if (isArpeggio) {
+      playArpeggio(chordNotes, instrument, isSustain);
+    } else {
+      playNote(chordNotes, instrument, isSustain);
+    }
+    
     if (onPlayChord) {
       onPlayChord(notes);
     }
