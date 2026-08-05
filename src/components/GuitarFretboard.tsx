@@ -17,6 +17,25 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
   
   const fretRange = guitarPosition === 'all' ? [0, numFrets] : getGuitarPositionFretRange(rootNote, guitarPosition);
 
+  // Pre-calculate allowed positions to prevent pitch duplication across strings
+  const allowedFretPositions = new Set<string>();
+  if (guitarPosition !== 'all') {
+    const seenFullNotes = new Set<string>();
+    // fretboard is reversed: stringIdx 0 is String 1 (High E), stringIdx 5 is String 6 (Low E)
+    // Iterating this way favors notes on higher strings (which means lower fret numbers)
+    fretboard.forEach((stringNotes, stringIdx) => {
+      for (let fretIdx = fretRange[0]; fretIdx <= fretRange[1]; fretIdx++) {
+        if (fretIdx < stringNotes.length) {
+          const fretNote = stringNotes[fretIdx];
+          if (!seenFullNotes.has(fretNote.fullNote)) {
+            seenFullNotes.add(fretNote.fullNote);
+            allowedFretPositions.add(`${stringIdx}-${fretIdx}`);
+          }
+        }
+      }
+    });
+  }
+
   const handleNoteClick = (fretNote: FretNote) => {
     playNote(fretNote.fullNote, 'guitar', isSustain);
   };
@@ -92,7 +111,7 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
           {/* Strings */}
           <div className="flex flex-col gap-1 sm:gap-2 relative z-10">
             {fretboard.map((stringNotes, stringIdx) => (
-              <div key={stringIdx} className="flex items-center group relative min-h-[20px] sm:min-h-[28px]">
+              <div key={stringIdx} className="flex items-center relative min-h-[20px] sm:min-h-[28px]">
                 {/* The string line visual */}
                 <div
                   className="absolute left-4 sm:left-8 right-0 bg-gradient-to-r from-gray-600 via-gray-400 to-gray-600 rounded-full z-0 shadow-sm pointer-events-none"
@@ -102,8 +121,13 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
                 {stringNotes.map((fretNote, fretIdx) => {
                   const { note } = fretNote;
                   const isRoot = isSameNote(note, rootNote);
-                  const isInScale = !isRoot && scaleNotes.some(sn => isSameNote(sn, note));
-                  const isHighlighted = isRoot || isInScale;
+                  
+                  // Use the scale's spelling of the note if it's in the scale
+                  const scaleSpelling = scaleNotes.find(sn => isSameNote(sn, note));
+                  const displayNote = scaleSpelling || note;
+                  const isInScale = !isRoot && !!scaleSpelling;
+                  
+                  let isHighlighted = isRoot || isInScale;
                   
                   const hasOctave = (an: string) => /\d$/.test(an);
                   let isActive = activeNotes.some(an => {
@@ -111,15 +135,21 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
                     return isSameNote(an, note);
                   });
 
-                  if (guitarPosition !== 'all' && (fretIdx < fretRange[0] || fretIdx > fretRange[1])) {
-                    isActive = false;
+                  if (guitarPosition !== 'all') {
+                    if (fretIdx < fretRange[0] || fretIdx > fretRange[1]) {
+                      isHighlighted = false;
+                      isActive = false;
+                    } else if (!allowedFretPositions.has(`${stringIdx}-${fretIdx}`)) {
+                      isHighlighted = false;
+                      isActive = false;
+                    }
                   }
 
                   return (
                     <div
                       key={fretIdx}
                       onClick={() => handleNoteClick(fretNote)}
-                      className={`cursor-pointer flex-1 flex justify-center z-10 h-full items-center ${fretIdx === 0 ? 'w-6 sm:w-8 flex-none border-r-2 sm:border-r-4 border-gray-400 pr-1 sm:pr-2' : 'border-r border-white/10'} hover:bg-white/5 transition-colors rounded`}
+                      className={`group cursor-pointer flex-1 flex justify-center z-10 h-full items-center ${fretIdx === 0 ? 'w-6 sm:w-8 flex-none border-r-2 sm:border-r-4 border-gray-400 pr-1 sm:pr-2' : 'border-r border-white/10'} hover:bg-white/5 transition-colors rounded`}
                     >
                       {isHighlighted || isActive ? (
                         <motion.div
@@ -134,11 +164,11 @@ const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = f
                             : 'bg-[#7cdffc] text-[#01131c]'}
                         `}
                         >
-                          {note}
+                          {displayNote}
                         </motion.div>
                       ) : (
                         <div className="w-4 h-4 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-[8px] sm:text-[10px] text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity bg-[#08191f]/50">
-                          {note}
+                          {displayNote}
                         </div>
                       )}
                     </div>
