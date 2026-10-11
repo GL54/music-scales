@@ -260,7 +260,7 @@ const Notes: React.FC = () => {
             )}
 
             {instrument === 'guitar' ? (
-              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} guitarPosition={guitarPosition} />
+              <GuitarFretboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} guitarPosition={guitarPosition} scaleType={scaleType} />
             ) : (
               <PianoKeyboard scaleNotes={scaleNotes} rootNote={rootNote} activeNotes={activeNotes} isSustain={isSustain} />
             )}

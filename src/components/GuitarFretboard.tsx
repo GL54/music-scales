@@ -1,4 +1,4 @@
-import { getGuitarFretboard, isSameNote, getGuitarPositionFretRange, type GuitarPosition, type FretNote } from '../utils/musicTheory';
+import { getGuitarFretboard, isSameNote, getGuitarPositionFretRange, type GuitarPosition, type FretNote, type ScaleType } from '../utils/musicTheory';
 import { motion } from 'framer-motion';
 import { playNote } from '../utils/audio';
 
@@ -8,14 +8,15 @@ type GuitarFretboardProps = {
   activeNotes?: string[];
   isSustain?: boolean;
   guitarPosition?: GuitarPosition;
+  scaleType?: ScaleType;
 };
 
-const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = false, guitarPosition = 'all' }: GuitarFretboardProps) => {
+const GuitarFretboard = ({ scaleNotes, rootNote, activeNotes = [], isSustain = false, guitarPosition = 'all', scaleType = 'major' }: GuitarFretboardProps) => {
   const numFrets = 16;
   const fretboard = [...getGuitarFretboard(numFrets)].reverse();
   const markers = [3, 5, 7, 9, 12, 15];
   
-  const fretRange = guitarPosition === 'all' ? [0, numFrets] : getGuitarPositionFretRange(rootNote, guitarPosition);
+  const fretRange = guitarPosition === 'all' ? [0, numFrets] : getGuitarPositionFretRange(rootNote, guitarPosition, scaleType);
 
   // Pre-calculate allowed positions to prevent pitch duplication across strings
   const allowedFretPositions = new Set<string>();

@@ -29,7 +29,7 @@ const ChordsList = ({ rootNote, scaleNotes, scaleType, instrument, isSustain = f
     let chordNotes: string[] = [];
     
     if (instrument === 'guitar') {
-      const fretRange = getGuitarPositionFretRange(rootNote, guitarPosition);
+      const fretRange = getGuitarPositionFretRange(rootNote, guitarPosition, scaleType);
       chordNotes = getGuitarChordVoicing(notes, fretRange, voicingType);
     } else {
       chordNotes = getAscendingChordNotes(notes, 4);
