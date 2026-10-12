@@ -4,11 +4,15 @@ import {
   COMMON_ROOTS,
   getVoicedChord,
   getScaleNotes,
+  getScaleHarmonicChords,
+  getAscendingChordNotes,
+  type ScaleType,
+  type DiatonicChordWithRole,
   type EarTrainingChordQuality,
 } from "../utils/musicTheory";
 import { playNote, playArpeggio, preloadAudio, type InstrumentType } from "../utils/audio";
 
-type TrainingCategory = "chords" | "notes" | "progressions";
+type TrainingCategory = "scaleChords" | "chords" | "notes" | "progressions";
 
 type ChordDifficulty = "basic" | "triads" | "sevenths" | "all";
 
@@ -204,7 +208,7 @@ const PROGRESSION_PRESETS: ProgressionQuiz[] = [
 const CHROMATIC_NOTES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
 const EarTrainer: React.FC = () => {
-  const [category, setCategory] = useState<TrainingCategory>("chords");
+  const [category, setCategory] = useState<TrainingCategory>("scaleChords");
 
   // Audio settings
   const [instrument, setInstrument] = useState<InstrumentType>("piano");
@@ -221,6 +225,18 @@ const EarTrainer: React.FC = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+
+  // 0. Scale Chords Quiz State (Requested: select note & major/minor, then train chords for that scale)
+  const [scaleChordTonic, setScaleChordTonic] = useState<string>("C");
+  const [scaleChordType, setScaleChordType] = useState<ScaleType>("major");
+  const [scaleChordVocab, setScaleChordVocab] = useState<"triads" | "sevenths">("triads");
+  const [currentScaleChordQuestion, setCurrentScaleChordQuestion] = useState<{
+    chord: DiatonicChordWithRole;
+    chordNotes: string[];
+    displayName: string;
+    harmonicChords: DiatonicChordWithRole[];
+  } | null>(null);
+  const [activeCadenceStep, setActiveCadenceStep] = useState<number | null>(null);
 
   // 1. Chord Quality Quiz State
   const [chordDifficulty, setChordDifficulty] = useState<ChordDifficulty>("triads");
@@ -309,6 +325,77 @@ const EarTrainer: React.FC = () => {
       playNote(triad, instrument, true);
     },
     [instrument]
+  );
+
+  // 0. Generate Next Scale Chord Question (train chords for selected scale)
+  const generateScaleChordQuestion = useCallback(() => {
+    const scaleNotes = getScaleNotes(scaleChordTonic, scaleChordType);
+    const harmonicChords = getScaleHarmonicChords(scaleNotes, scaleChordType);
+    if (!harmonicChords || harmonicChords.length === 0) return;
+
+    const randomChord = harmonicChords[Math.floor(Math.random() * harmonicChords.length)];
+    const rawNotes = scaleChordVocab === "triads" ? randomChord.notes : randomChord.seventhNotes;
+    const chordNotes = getAscendingChordNotes(rawNotes, 4);
+    const displayName = scaleChordVocab === "triads" ? randomChord.name : randomChord.seventhName;
+
+    setCurrentScaleChordQuestion({
+      chord: randomChord,
+      chordNotes,
+      displayName,
+      harmonicChords,
+    });
+    setSelectedAnswer(null);
+    setIsAnswerRevealed(false);
+
+    // Auto-play the new mystery chord
+    setTimeout(() => {
+      playMysteryChord(chordNotes, playStyle);
+    }, 150);
+  }, [scaleChordTonic, scaleChordType, scaleChordVocab, playMysteryChord, playStyle]);
+
+  // Play Scale Tonic Chord
+  const playTonicChord = useCallback(
+    (scaleTonic: string, scaleType: ScaleType) => {
+      const scaleNotes = getScaleNotes(scaleTonic, scaleType);
+      const chords = getScaleHarmonicChords(scaleNotes, scaleType);
+      if (chords.length === 0) return;
+
+      const tonicChord = chords[0];
+      const rawNotes = scaleChordVocab === "triads" ? tonicChord.notes : tonicChord.seventhNotes;
+      const tonicNotes = getAscendingChordNotes(rawNotes, 4);
+      playMysteryChord(tonicNotes, playStyle);
+    },
+    [playMysteryChord, playStyle, scaleChordVocab]
+  );
+
+  // Play Key Cadence (I - IV - V - I or i - iv - v - i)
+  const playCadence = useCallback(
+    (scaleTonic: string, scaleType: ScaleType) => {
+      const scaleNotes = getScaleNotes(scaleTonic, scaleType);
+      const chords = getScaleHarmonicChords(scaleNotes, scaleType);
+      if (chords.length < 7) return;
+
+      timeoutRefs.current.forEach(clearTimeout);
+      timeoutRefs.current = [];
+
+      const cadenceIndices = [0, 3, 4, 0];
+
+      cadenceIndices.forEach((chordIdx, step) => {
+        const t = setTimeout(() => {
+          setActiveCadenceStep(step);
+          const rawNotes = scaleChordVocab === "triads" ? chords[chordIdx].notes : chords[chordIdx].seventhNotes;
+          const voicedNotes = getAscendingChordNotes(rawNotes, 4);
+          playNote(voicedNotes, instrument, isSustain);
+        }, step * 850);
+        timeoutRefs.current.push(t);
+      });
+
+      const endT = setTimeout(() => {
+        setActiveCadenceStep(null);
+      }, cadenceIndices.length * 850 + 400);
+      timeoutRefs.current.push(endT);
+    },
+    [instrument, isSustain, scaleChordVocab]
   );
 
   // 1. Generate Next Chord Question
@@ -414,14 +501,26 @@ const EarTrainer: React.FC = () => {
 
   // Initialize question on mount or category change
   useEffect(() => {
-    if (category === "chords") {
+    if (category === "scaleChords") {
+      generateScaleChordQuestion();
+    } else if (category === "chords") {
       generateChordQuestion();
     } else if (category === "notes") {
       generateNoteQuestion();
     } else {
       generateProgressionQuestion();
     }
-  }, [category, chordDifficulty, chordRootMode, generateChordQuestion, generateNoteQuestion, generateProgressionQuestion, noteMode, noteTonic]);
+  }, [
+    category,
+    chordDifficulty,
+    chordRootMode,
+    generateChordQuestion,
+    generateNoteQuestion,
+    generateProgressionQuestion,
+    generateScaleChordQuestion,
+    noteMode,
+    noteTonic,
+  ]);
 
   // Answer Validation
   const handleSelectAnswer = (answer: string) => {
@@ -433,7 +532,9 @@ const EarTrainer: React.FC = () => {
 
     let isCorrect = false;
 
-    if (category === "chords" && currentChordQuestion) {
+    if (category === "scaleChords" && currentScaleChordQuestion) {
+      isCorrect = answer === currentScaleChordQuestion.chord.numeral;
+    } else if (category === "chords" && currentChordQuestion) {
       isCorrect = answer === currentChordQuestion.quality.id;
     } else if (category === "notes" && currentNoteQuestion) {
       isCorrect = answer === currentNoteQuestion.note || answer === `${currentNoteQuestion.degreeNumber}`;
@@ -453,24 +554,46 @@ const EarTrainer: React.FC = () => {
     }
   };
 
-  // Keyboard shortcut listener for spacebar / R to replay
+  // Keyboard shortcut listener for spacebar / R to replay, Enter for next question
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.code === "Space" || e.key === "r" || e.key === "R") {
         e.preventDefault();
-        if (category === "chords" && currentChordQuestion) {
+        if (category === "scaleChords" && currentScaleChordQuestion) {
+          playMysteryChord(currentScaleChordQuestion.chordNotes);
+        } else if (category === "chords" && currentChordQuestion) {
           playMysteryChord(currentChordQuestion.notes);
         } else if (category === "notes" && currentNoteQuestion) {
           playNote(`${currentNoteQuestion.note}4`, instrument, isSustain);
         }
       }
+
+      if (e.key === "Enter" && isAnswerRevealed) {
+        if (category === "scaleChords") generateScaleChordQuestion();
+        else if (category === "chords") generateChordQuestion();
+        else if (category === "notes") generateNoteQuestion();
+        else if (category === "progressions") generateProgressionQuestion();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [category, currentChordQuestion, currentNoteQuestion, instrument, isSustain, playMysteryChord]);
+  }, [
+    category,
+    currentChordQuestion,
+    currentNoteQuestion,
+    currentScaleChordQuestion,
+    generateChordQuestion,
+    generateNoteQuestion,
+    generateProgressionQuestion,
+    generateScaleChordQuestion,
+    instrument,
+    isAnswerRevealed,
+    isSustain,
+    playMysteryChord,
+  ]);
 
   const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
@@ -498,18 +621,19 @@ const EarTrainer: React.FC = () => {
         {/* Global Controls & Gamification Score Header */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-5 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl items-center">
           {/* Main Category Tabs */}
-          <div className="md:col-span-6 flex p-1 rounded-2xl bg-black/40 border border-white/10">
+          <div className="md:col-span-7 flex flex-wrap p-1 rounded-2xl bg-black/40 border border-white/10 gap-1">
             {[
-              { id: "chords" as TrainingCategory, label: "🎹 Chords Ear Training" },
+              { id: "scaleChords" as TrainingCategory, label: "🏛️ In-Scale Chords" },
+              { id: "chords" as TrainingCategory, label: "🎹 Chord Qualities" },
               { id: "notes" as TrainingCategory, label: "🎯 Notes & Degrees" },
               { id: "progressions" as TrainingCategory, label: "🎼 Progressions" },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setCategory(tab.id)}
-                className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex-1 min-w-[110px] py-2 px-2.5 rounded-xl text-xs sm:text-xs md:text-sm font-bold transition-all text-center ${
                   category === tab.id
-                    ? "bg-gradient-to-r from-[#7cdffc] to-[#a855f7] text-white shadow-md"
+                    ? "bg-gradient-to-r from-[#7cdffc] via-[#a855f7] to-[#fa1ea2] text-white shadow-md"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
@@ -519,7 +643,7 @@ const EarTrainer: React.FC = () => {
           </div>
 
           {/* Gamification Stats */}
-          <div className="md:col-span-6 flex flex-wrap items-center justify-end gap-3 text-xs">
+          <div className="md:col-span-5 flex flex-wrap items-center justify-end gap-2.5 text-xs">
             {/* Streak */}
             <div className="px-3.5 py-1.5 rounded-2xl bg-black/40 border border-amber-500/30 flex items-center gap-2">
               <span className="text-base">🔥</span>
@@ -572,6 +696,335 @@ const EarTrainer: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* CATEGORY 0: SCALE CHORDS EAR TRAINING (TRAIN CHORDS FOR SELECTED SCALE) */}
+        {category === "scaleChords" && (
+          <div className="space-y-6">
+            {/* Scale & Key Configuration Box */}
+            <div className="p-6 rounded-3xl bg-black/40 border border-white/10 space-y-5 backdrop-blur-md">
+              {/* Row 1: Note Selection (Chromatic 12 Roots) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#7cdffc] flex items-center gap-1.5">
+                    <span>1.</span> Select Tonic Note:
+                  </span>
+                  <span className="text-xs font-mono text-gray-400">
+                    Active Root: <strong className="text-white text-sm">{scaleChordTonic}</strong>
+                  </span>
+                </div>
+                <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                  {CHROMATIC_NOTES.map((note) => {
+                    const isSelected = scaleChordTonic === note;
+                    return (
+                      <button
+                        key={note}
+                        onClick={() => setScaleChordTonic(note)}
+                        className={`py-2 rounded-xl text-xs font-extrabold border transition-all ${
+                          isSelected
+                            ? "bg-gradient-to-br from-[#7cdffc] to-[#a855f7] text-white border-transparent shadow-[0_0_12px_rgba(124,223,252,0.4)] scale-105"
+                            : "bg-white/5 text-gray-400 border-white/5 hover:text-white hover:bg-white/10"
+                        }`}
+                      >
+                        {note}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 2: Major vs Minor & Vocabulary */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-1 border-t border-white/10">
+                {/* Scale Type: Major or Minor */}
+                <div className="md:col-span-5 space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#fa1ea2] flex items-center gap-1.5">
+                    <span>2.</span> Select Scale Type:
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setScaleChordType("major")}
+                      className={`p-2.5 rounded-2xl text-xs font-extrabold border transition-all flex flex-col items-center gap-1 ${
+                        scaleChordType === "major"
+                          ? "bg-gradient-to-r from-[#7cdffc]/20 to-[#a855f7]/20 text-[#7cdffc] border-[#7cdffc]/60 shadow-md"
+                          : "bg-white/5 text-gray-400 border-white/5 hover:text-white"
+                      }`}
+                    >
+                      <span className="text-sm">✨ Major Scale</span>
+                      <span className="text-[10px] text-gray-400 font-mono">I - ii - iii - IV - V - vi - vii°</span>
+                    </button>
+                    <button
+                      onClick={() => setScaleChordType("minor")}
+                      className={`p-2.5 rounded-2xl text-xs font-extrabold border transition-all flex flex-col items-center gap-1 ${
+                        scaleChordType === "minor"
+                          ? "bg-gradient-to-r from-[#fa1ea2]/20 to-[#a855f7]/20 text-[#fa1ea2] border-[#fa1ea2]/60 shadow-md"
+                          : "bg-white/5 text-gray-400 border-white/5 hover:text-white"
+                      }`}
+                    >
+                      <span className="text-sm">🌙 Minor Scale</span>
+                      <span className="text-[10px] text-gray-400 font-mono">i - ii° - III - iv - v - VI - VII</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Vocabulary & Play Mode */}
+                <div className="md:col-span-4 space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Chord Vocabulary:
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setScaleChordVocab("triads")}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        scaleChordVocab === "triads"
+                          ? "bg-white/20 text-white border-white/40 shadow-sm"
+                          : "bg-white/5 text-gray-400 border-white/5 hover:text-white"
+                      }`}
+                    >
+                      Triads (3-Notes)
+                    </button>
+                    <button
+                      onClick={() => setScaleChordVocab("sevenths")}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        scaleChordVocab === "sevenths"
+                          ? "bg-white/20 text-white border-white/40 shadow-sm"
+                          : "bg-white/5 text-gray-400 border-white/5 hover:text-white"
+                      }`}
+                    >
+                      7th Chords (4-Notes)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Audio Priming / Anchors */}
+                <div className="md:col-span-3 space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Ear Anchors:
+                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      onClick={() => playTonicChord(scaleChordTonic, scaleChordType)}
+                      className="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/15 text-white flex items-center justify-center gap-1.5 transition-all"
+                      title="Play Tonic Chord"
+                    >
+                      <span>🏠</span> Tonic ({scaleChordTonic} {scaleChordType === "major" ? "Maj" : "m"})
+                    </button>
+                    <button
+                      onClick={() => playCadence(scaleChordTonic, scaleChordType)}
+                      className="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-[#a855f7]/20 hover:bg-[#a855f7]/30 border border-[#a855f7]/40 text-purple-200 flex items-center justify-center gap-1.5 transition-all"
+                      title="Play 4-Chord Cadence"
+                    >
+                      <span>🎼</span> Play Cadence
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cadence Step Visualization (if playing cadence) */}
+              {activeCadenceStep !== null && (
+                <div className="flex items-center justify-center gap-2 pt-2 text-xs">
+                  <span className="text-gray-400 mr-2">Cadence Progress:</span>
+                  {(scaleChordType === "major"
+                    ? ["I (Tonic)", "IV (Subdom)", "V (Dominant)", "I (Tonic)"]
+                    : ["i (Tonic)", "iv (Subdom)", "v (Dominant)", "i (Tonic)"]
+                  ).map((label, idx) => (
+                    <span
+                      key={idx}
+                      className={`px-3 py-1 rounded-full font-mono font-bold transition-all ${
+                        activeCadenceStep === idx
+                          ? "bg-gradient-to-r from-[#7cdffc] to-[#a855f7] text-white scale-110 shadow-lg"
+                          : "bg-white/5 text-gray-500"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Mystery Scale Chord Challenge Stage */}
+            <div className="p-8 rounded-3xl bg-gradient-to-br from-white/10 via-black/40 to-white/5 border border-white/15 text-center space-y-6 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+              <div className="space-y-2">
+                <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#7cdffc] block">
+                  Scale Ear Training Challenge · {scaleChordTonic} {scaleChordType.toUpperCase()}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
+                  Which chord in {scaleChordTonic} {scaleChordType === "major" ? "Major" : "Minor"} is this?
+                </h3>
+                <p className="text-xs text-gray-400 max-w-xl mx-auto">
+                  Notes in key:{" "}
+                  <span className="font-mono text-[#7cdffc]">
+                    {getScaleNotes(scaleChordTonic, scaleChordType).join(" · ")}
+                  </span>
+                </p>
+              </div>
+
+              {/* Audio Playback Center */}
+              <div className="flex flex-wrap justify-center items-center gap-3">
+                <button
+                  onClick={() => currentScaleChordQuestion && playMysteryChord(currentScaleChordQuestion.chordNotes)}
+                  className={`px-8 py-4 rounded-full text-base font-extrabold transition-all duration-300 flex items-center gap-3 shadow-xl ${
+                    isPlayingAudio
+                      ? "bg-[#7cdffc] text-black scale-105 shadow-[0_0_25px_rgba(124,223,252,0.6)] animate-pulse"
+                      : "bg-gradient-to-r from-[#7cdffc] via-[#a855f7] to-[#fa1ea2] text-white hover:scale-105 shadow-[0_0_20px_rgba(124,223,252,0.4)]"
+                  }`}
+                >
+                  <span className="text-xl">{isPlayingAudio ? "🔊" : "▶"}</span>
+                  {isPlayingAudio ? "Listening..." : "Replay Mystery Chord (Spacebar)"}
+                </button>
+
+                <button
+                  onClick={() => playTonicChord(scaleChordTonic, scaleChordType)}
+                  className="px-5 py-4 rounded-full text-sm font-bold bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all flex items-center gap-2"
+                >
+                  <span>🏠</span> Re-hear Tonic ({scaleChordTonic})
+                </button>
+              </div>
+
+              {/* 7 Chord Degree Option Buttons */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 max-w-5xl mx-auto pt-3">
+                {currentScaleChordQuestion?.harmonicChords.map((chord) => {
+                  const isSelected = selectedAnswer === chord.numeral;
+                  const isCorrect = currentScaleChordQuestion?.chord.numeral === chord.numeral;
+                  const chordLabel = scaleChordVocab === "triads" ? chord.name : chord.seventhName;
+
+                  let buttonStyles = "bg-white/5 border-white/10 text-white hover:bg-white/15";
+
+                  if (isAnswerRevealed) {
+                    if (isCorrect) {
+                      buttonStyles = "bg-emerald-500/30 border-emerald-400 text-white shadow-[0_0_15px_rgba(52,211,153,0.5)] scale-105";
+                    } else if (isSelected) {
+                      buttonStyles = "bg-rose-500/30 border-rose-500 text-white";
+                    } else {
+                      buttonStyles = "opacity-40 bg-white/5 border-white/5 text-gray-400";
+                    }
+                  }
+
+                  // Function color pill
+                  const functionColor =
+                    chord.function === "Tonic"
+                      ? "text-[#7cdffc] bg-[#7cdffc]/10 border-[#7cdffc]/30"
+                      : chord.function === "Subdominant"
+                      ? "text-[#a855f7] bg-[#a855f7]/10 border-[#a855f7]/30"
+                      : "text-amber-300 bg-amber-400/10 border-amber-400/30";
+
+                  return (
+                    <motion.button
+                      key={chord.numeral}
+                      whileHover={!isAnswerRevealed ? { scale: 1.05 } : {}}
+                      whileTap={!isAnswerRevealed ? { scale: 0.95 } : {}}
+                      onClick={() => handleSelectAnswer(chord.numeral)}
+                      disabled={isAnswerRevealed}
+                      className={`p-3.5 rounded-2xl border text-center transition-all duration-300 flex flex-col justify-between items-center gap-1.5 ${buttonStyles}`}
+                    >
+                      <span className="text-xl font-mono font-black">{chord.numeral}</span>
+                      <span className="text-sm font-extrabold text-white">{chordLabel}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${functionColor}`}>
+                        {chord.function}
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback Reveal */}
+              <AnimatePresence>
+                {isAnswerRevealed && currentScaleChordQuestion && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    className="p-6 rounded-2xl bg-black/60 border border-white/15 max-w-2xl mx-auto text-left space-y-4 shadow-xl"
+                  >
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                      <div>
+                        <span
+                          className={`text-xs font-bold uppercase tracking-wider ${
+                            selectedAnswer === currentScaleChordQuestion.chord.numeral
+                              ? "text-emerald-400"
+                              : "text-rose-400"
+                          }`}
+                        >
+                          {selectedAnswer === currentScaleChordQuestion.chord.numeral
+                            ? "✓ Excellent! You recognized the degree perfectly!"
+                            : `✗ It was Degree ${currentScaleChordQuestion.chord.degree} (${currentScaleChordQuestion.chord.numeral})`}
+                        </span>
+                        <h4 className="text-2xl font-extrabold text-white mt-0.5">
+                          {currentScaleChordQuestion.chord.numeral} · {currentScaleChordQuestion.displayName}
+                        </h4>
+                      </div>
+
+                      <button
+                        onClick={generateScaleChordQuestion}
+                        className="px-5 py-2.5 rounded-full text-xs font-extrabold bg-gradient-to-r from-[#7cdffc] via-[#a855f7] to-[#fa1ea2] text-white hover:scale-105 transition-all shadow-md"
+                      >
+                        Next Chord in Scale ➔
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <span className="text-gray-400 block text-[10px] font-mono">Chord Notes</span>
+                        <span className="font-extrabold text-white font-mono text-sm">
+                          {(scaleChordVocab === "triads"
+                            ? currentScaleChordQuestion.chord.notes
+                            : currentScaleChordQuestion.chord.seventhNotes
+                          ).join(" - ")}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <span className="text-gray-400 block text-[10px] font-mono">Harmonic Function</span>
+                        <span className="font-extrabold text-[#7cdffc]">
+                          {currentScaleChordQuestion.chord.function} (Tension: {currentScaleChordQuestion.chord.tensionLevel})
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <span className="text-gray-400 block text-[10px] font-mono">Degree Role</span>
+                        <span className="font-extrabold text-purple-300">
+                          {currentScaleChordQuestion.chord.functionRole}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* In-Scale Interactive Reference Strip */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#7cdffc]"></span>
+                  {scaleChordTonic} {scaleChordType === "major" ? "Major" : "Minor"} Chords Soundboard (Click any to audition)
+                </h4>
+                <span className="text-[11px] text-gray-400">Click to compare how each degree sounds in this scale</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                {currentScaleChordQuestion?.harmonicChords.map((chord) => {
+                  const chordNotes = scaleChordVocab === "triads" ? chord.notes : chord.seventhNotes;
+                  const voiced = getAscendingChordNotes(chordNotes, 4);
+                  const label = scaleChordVocab === "triads" ? chord.name : chord.seventhName;
+
+                  return (
+                    <div
+                      key={chord.numeral}
+                      onClick={() => playMysteryChord(voiced, "both")}
+                      className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 cursor-pointer transition-all space-y-1 group"
+                    >
+                      <div className="flex justify-between items-center text-xs font-bold text-white">
+                        <span className="font-mono text-[#7cdffc]">{chord.numeral}</span>
+                        <span className="text-gray-400 group-hover:text-[#fa1ea2] transition-colors">▶</span>
+                      </div>
+                      <span className="text-xs font-extrabold text-white block">{label}</span>
+                      <span className="text-[10px] text-gray-400 font-mono block">{chordNotes.join(" · ")}</span>
+                      <span className="text-[10px] text-gray-400 block line-clamp-1 italic">{chord.function}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CATEGORY 1: CHORD EAR TRAINING */}
         {category === "chords" && (
